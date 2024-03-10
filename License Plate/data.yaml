@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 10
+names: ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+
+roboflow:
+  workspace: kasetsart-9zpfv
+  project: digits-dlhb6
+  version: 11
+  license: MIT
+  url: https://universe.roboflow.com/kasetsart-9zpfv/digits-dlhb6/dataset/11
