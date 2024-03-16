@@ -21,6 +21,7 @@ from PIL import Image
 from flask_cors import CORS, cross_origin
 from flask import send_file
 from datetime import datetime
+from typing import Dict, Union
 
 load_dotenv()
 
@@ -41,6 +42,8 @@ db_waterbill = client["meter_recording"]["bills_water"]
 db_electbill = client["meter_recording"]["bills_electric"]
 db_config_water = client['meter_recording']['config_water_meter']
 db_config_elec = client['meter_recording']['config_electric_meter']
+db_unit_water = client['meter_recording']['unit_water']
+db_unit_elec = client['meter_recording']['unit_electric']
     
 
 def calculate_water_bills(unit:float):
@@ -82,7 +85,7 @@ def calculate_water_bills(unit:float):
         value += ((unit-160)*config_water['waterunit_161_200']) 
     return value
 
-def calculate_elec_bills(unit:float):
+def calculate_elec_bills(unit:float) -> Dict[float, float]:
     config_elec = db_config_elec.find_one()
 
     value = 0
@@ -99,7 +102,7 @@ def calculate_elec_bills(unit:float):
         value += ((unit-150)*config_elec['unit151_400'])
 
     value = value + ((config_elec['ft'] * unit)/100)
-    return value
+    return value, config_elec['ft']
 
 @app.route('/api/data_water', methods=['GET'])
 @cross_origin()
@@ -131,6 +134,65 @@ def get_data_elect():
             item['image'] = image_base64
         formatted_data.append(item)
 
+    return jsonify(data)
+
+@app.route('/api/datatable_elect', methods=['GET'])
+@cross_origin()
+def get_datatable_elect():
+    collection = db_electbill
+    current_year = datetime.now().year
+    pipeline = [
+    {
+        "$project": {
+            "_id": 0,
+            "name": 1,
+            "id": 1,
+            "unit": 1,
+            "ft": 1,
+            "bill": 1,
+            "year": {"$year": "$datetime"}, 
+            "month": {"$month": "$datetime"} 
+        }
+    },
+    {
+            "$match": {
+                "year": current_year
+            }
+        },
+    {
+        "$sort": {"year": 1, "month": 1}
+    }
+]
+    data = list(collection.aggregate(pipeline))
+    return jsonify(data)
+
+@app.route('/api/datatable_water', methods=['GET'])
+@cross_origin()
+def get_datatable_water():
+    collection = db_waterbill
+    current_year = datetime.now().year
+    pipeline = [
+    {
+        "$project": {
+            "_id": 0,
+            "name": 1,
+            "id": 1,
+            "unit": 1,
+            "bill": 1,
+            "year": {"$year": "$datetime"}, 
+            "month": {"$month": "$datetime"} 
+        }
+    },
+    {
+            "$match": {
+                "year": current_year
+            }
+        },
+    {
+        "$sort": {"year": 1, "month": 1}
+    }
+]
+    data = list(collection.aggregate(pipeline))
     return jsonify(data)
 
 @app.route('/api/data_waterbillmonth', methods=['GET'])
@@ -169,6 +231,47 @@ def get_data_waterbillmonth():
     data = list(collection.aggregate(pipeline))
     return jsonify(data)
 
+@app.route('/api/data_waterbillmonthChart', methods=['GET'])
+@cross_origin()
+def get_data_waterbillmonthChart():
+    collection = db_waterbill
+    pipeline = [
+        {
+            "$project": {
+                "_id": 0,
+                "name": 1,
+                "id": 1,
+                "bill": 1,
+                "year": {"$year": "$datetime"}, 
+                "month": {"$month": "$datetime"} 
+            }
+        },
+        {
+            "$group": {
+                "_id": {
+                    "name": "$name",
+                    "year": "$year",
+                    "month": "$month"
+                },
+                "total_bill": {"$sum": "$bill"}
+            }
+        },
+        {
+            "$project": {
+                "_id": 0,
+                "name": "$_id.name",
+                "year": "$_id.year",
+                "month": "$_id.month",
+                "total_bill": 1
+            }
+        },
+        {
+            "$sort": {"year": 1, "month": 1} 
+        }
+    ]
+    data = list(collection.aggregate(pipeline))
+    return jsonify(data)
+
 @app.route('/api/data_electricbillmonth', methods=['GET'])
 @cross_origin()
 def get_data_electricbillmonth():
@@ -179,6 +282,7 @@ def get_data_electricbillmonth():
             "_id": 0,
             "name": 1,
             "id": 1,
+            "unit": 1,
             "bill": 1,
             "year": {"$year": "$datetime"}, 
             "month": {"$month": "$datetime"} 
@@ -195,6 +299,7 @@ def get_data_electricbillmonth():
             "_id": 0,
             "year": "$_id.year",
             "month": "$_id.month",
+            "unit": 1,
             "total_bill": 1
         }
     },
@@ -202,6 +307,134 @@ def get_data_electricbillmonth():
         "$sort": {"year": 1, "month": 1}
     }
 ]
+    data = list(collection.aggregate(pipeline))
+    return jsonify(data)
+
+@app.route('/api/data_electricbillunitperfloor', methods=['GET'])
+@cross_origin()
+def get_data_electricbillunitperfloor():
+    collection = db_electbill
+    pipeline = [
+    {
+        "$project": {
+            "_id": 0,
+            "name": 1,
+            "id": 1,
+            "unit": 1,
+            "bill": 1,
+            "year": {"$year": "$datetime"}, 
+            "month": {"$month": "$datetime"} 
+        }
+    },
+    {
+        "$group": {
+            "_id": {"year": "$year", 
+                    "month": "$month" , 
+                    "unit": "$unit" , 
+                    "name": "$name"},
+            "total_bill": {"$sum": "$bill"},
+            
+        }
+    },
+    {
+        "$project": {
+            "_id": 0,
+            "year": "$_id.year",
+            "month": "$_id.month",
+            "unit": "$_id.unit",
+            "name": "$_id.name",
+            "total_bill": 1
+        }
+    },
+    {
+        "$sort": {"year": 1, "month": 1}
+    }
+]
+    data = list(collection.aggregate(pipeline))
+    return jsonify(data)
+
+@app.route('/api/data_watericbillunitperfloor', methods=['GET'])
+@cross_origin()
+def get_data_waterbillunitperfloor():
+    collection = db_waterbill
+    pipeline = [
+    {
+        "$project": {
+            "_id": 0,
+            "name": 1,
+            "id": 1,
+            "unit": 1,
+            "bill": 1,
+            "year": {"$year": "$datetime"}, 
+            "month": {"$month": "$datetime"} 
+        }
+    },
+    {
+        "$group": {
+            "_id": {"year": "$year", 
+                    "month": "$month" , 
+                    "unit": "$unit" , 
+                    "name": "$name"},
+            "total_bill": {"$sum": "$bill"},
+            
+        }
+    },
+    {
+        "$project": {
+            "_id": 0,
+            "year": "$_id.year",
+            "month": "$_id.month",
+            "unit": "$_id.unit",
+            "name": "$_id.name",
+            "total_bill": 1
+        }
+    },
+    {
+        "$sort": {"year": 1, "month": 1}
+    }
+]
+    data = list(collection.aggregate(pipeline))
+    return jsonify(data)
+
+
+@app.route('/api/data_electricbillmonthChart', methods=['GET'])
+@cross_origin()
+def get_data_electricbillmonthChart():
+    collection = db_electbill
+    pipeline = [
+        {
+            "$project": {
+                "_id": 0,
+                "name": 1,
+                "id": 1,
+                "bill": 1,
+                "year": {"$year": "$datetime"}, 
+                "month": {"$month": "$datetime"} 
+            }
+        },
+        {
+            "$group": {
+                "_id": {
+                    "name": "$name",
+                    "year": "$year",
+                    "month": "$month"
+                },
+                "total_bill": {"$sum": "$bill"}
+            }
+        },
+        {
+            "$project": {
+                "_id": 0,
+                "name": "$_id.name",
+                "year": "$_id.year",
+                "month": "$_id.month",
+                "total_bill": 1
+            }
+        },
+        {
+            "$sort": {"year": 1, "month": 1} 
+        }
+    ]
     data = list(collection.aggregate(pipeline))
     return jsonify(data)
 
@@ -277,21 +510,29 @@ def get_data_electricbillyear():
 @cross_origin()
 def get_data_chart_water():
     collection = db_watermeter
+
+    # Find today's date
+    today = datetime.now().date()
+
+    # Set start and end time for today
+    start_of_day = datetime.combine(today, datetime.min.time())
+    end_of_day = datetime.combine(today, datetime.max.time())
+
     pipeline = [
+        {
+            "$match": {
+                "datetime": {
+                    "$gte": start_of_day,  # Greater than or equal to the start of the day
+                    "$lt": end_of_day      # Less than the end of the day
+                }
+            }
+        },
         {
             "$project": {
                 "_id": 0,
                 "name": 1,
-                "id": 1,
-                "value": {
-                    "$toString": "$value"  # แปลงค่า value เป็น string
-                },
-                "time": {
-                    "$dateToString": {
-                        "format": "%H:%M",
-                        "date": "$datetime"
-                    }
-                }
+                "value": {"$toString": "$value"},
+                "time": {"$dateToString": {"format": "%H:%M", "date": "$datetime"}}
             }
         }
     ]
@@ -302,21 +543,27 @@ def get_data_chart_water():
 @cross_origin()
 def get_data_chart_elect():
     collection = db_electmeter
+    today = datetime.now().date()
+
+    # Set start and end time for today
+    start_of_day = datetime.combine(today, datetime.min.time())
+    end_of_day = datetime.combine(today, datetime.max.time())
+
     pipeline = [
+        {
+            "$match": {
+                "datetime": {
+                    "$gte": start_of_day,  # Greater than or equal to the start of the day
+                    "$lt": end_of_day      # Less than the end of the day
+                }
+            }
+        },
         {
             "$project": {
                 "_id": 0,
                 "name": 1,
-                "id": 1,
-                "value": {
-                    "$toString": "$value"  # แปลงค่า value เป็น string
-                },
-                "time": {
-                    "$dateToString": {
-                        "format": "%H:%M",
-                        "date": "$datetime"
-                    }
-                }
+                "value": {"$toString": "$value"},
+                "time": {"$dateToString": {"format": "%H:%M", "date": "$datetime"}}
             }
         }
     ]
@@ -363,8 +610,34 @@ def add_meter_reading():
         print(meter_docs)
         if typemeter == "watermeter":
             db_watermeter.insert_one(meter_docs)
+            dt = current_utc_datetime-(timedelta(days=1))
+            if current_utc_datetime.hour == 14:
+                value_before = db_watermeter.find_one({'datetime':{'$gte': datetime(dt.year, dt.month, dt.day)}})['value']
+
+                meter_unit_docs = {
+                    "name": position,
+                    "typemeter": typemeter,
+                    "id": "101", #1ตัวแรกคือเลขชั้น 01คือลำดับเครื่อง
+                    "unit": float(int(value)-int(value_before)),
+                    "datetime": current_utc_datetime,
+                }
+                float(int(value)-int(value_before))
+                db_unit_water.insert_one(meter_unit_docs)
         elif typemeter == "electricmeter":
             db_electmeter.insert_one(meter_docs)
+            dt = current_utc_datetime-(timedelta(days=1))
+            if current_utc_datetime.hour == 14:
+                value_before = db_electmeter.find_one({'datetime':{'$gte': datetime(dt.year, dt.month, dt.day)}})['value']
+
+                meter_unit_docs = {
+                    "name": position,
+                    "typemeter": typemeter,
+                    "id": "101", #1ตัวแรกคือเลขชั้น 01คือลำดับเครื่อง
+                    "unit": float(int(value)-int(value_before)),
+                    "datetime": current_utc_datetime,
+                }
+                float(int(value)-int(value_before))
+                db_unit_elec.insert_one(meter_unit_docs)
         else:
             print("Invalid typemeter value:", typemeter)
         #ค่าแรกของวันที่ 1 ของเดือนมีนา - ค่าแรกของวันที่ 1 กุมภา
@@ -382,6 +655,7 @@ def add_meter_reading():
                     "name": position,
                     "typemeter": typemeter,
                     "id": "101", #1ตัวแรกคือเลขชั้น 01คือลำดับเครื่อง
+                    "unit": float(int(value)-int(value_before)),
                     "bill": value_bills,
                     "datetime": current_utc_datetime,
                 }
@@ -389,19 +663,21 @@ def add_meter_reading():
                 db_waterbill.insert_one(meter_bill_docs)
         #ค่าไฟ 
         if typemeter == "electricmeter":
-            if current_utc_datetime.day == 5:
+            if current_utc_datetime.day == 13:
                 if current_utc_datetime.month == 1:
                     value_before = db_electmeter.find_one({'datetime':{'$lte': datetime(current_utc_datetime.year-1,12,2)}},sort=[("datetime",1)])['value']
                 else:
                     value_before = db_electmeter.find_one({'datetime':{'$lte': datetime(current_utc_datetime.year,current_utc_datetime.month-1,2)}},sort=[("datetime",1)])['value']
                 
-                value_bills = calculate_elec_bills(float(int(value)-int(value_before)))
+                value_bills, ft = calculate_elec_bills(float(int(value)-int(value_before)))
 
                 meter_bill_docs = {
                     "name": position,
                     "typemeter": typemeter,
                     "id": "101", #1ตัวแรกคือเลขชั้น 01คือลำดับเครื่อง
+                    "unit": float(int(value)-int(value_before)),
                     "bill": value_bills,
+                    "ft": ft,
                     "datetime": current_utc_datetime,
                 }
                 print(value_bills)
