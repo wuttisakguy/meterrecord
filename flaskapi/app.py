@@ -611,13 +611,13 @@ def add_meter_reading():
         if typemeter == "watermeter":
             db_watermeter.insert_one(meter_docs)
             dt = current_utc_datetime-(timedelta(days=1))
-            if current_utc_datetime.hour == 14:
+            if current_utc_datetime.hour == 00:
                 value_before = db_watermeter.find_one({'datetime':{'$gte': datetime(dt.year, dt.month, dt.day)}})['value']
 
                 meter_unit_docs = {
                     "name": position,
                     "typemeter": typemeter,
-                    "id": "101", #1ตัวแรกคือเลขชั้น 01คือลำดับเครื่อง
+                    "id": "101", 
                     "unit": float(int(value)-int(value_before)),
                     "datetime": current_utc_datetime,
                 }
@@ -626,13 +626,13 @@ def add_meter_reading():
         elif typemeter == "electricmeter":
             db_electmeter.insert_one(meter_docs)
             dt = current_utc_datetime-(timedelta(days=1))
-            if current_utc_datetime.hour == 14:
+            if current_utc_datetime.hour == 00:
                 value_before = db_electmeter.find_one({'datetime':{'$gte': datetime(dt.year, dt.month, dt.day)}})['value']
 
                 meter_unit_docs = {
                     "name": position,
                     "typemeter": typemeter,
-                    "id": "101", #1ตัวแรกคือเลขชั้น 01คือลำดับเครื่อง
+                    "id": "101", 
                     "unit": float(int(value)-int(value_before)),
                     "datetime": current_utc_datetime,
                 }
@@ -663,7 +663,7 @@ def add_meter_reading():
                 db_waterbill.insert_one(meter_bill_docs)
         #ค่าไฟ 
         if typemeter == "electricmeter":
-            if current_utc_datetime.day == 13:
+            if current_utc_datetime.day == 1:
                 if current_utc_datetime.month == 1:
                     value_before = db_electmeter.find_one({'datetime':{'$lte': datetime(current_utc_datetime.year-1,12,2)}},sort=[("datetime",1)])['value']
                 else:
