@@ -5,18 +5,6 @@ import matplotlib.pyplot as plt
 import os
 
 class MeterReader:
-    """
-    A class to read meter values using a YOLO model. It processes an image to detect digits and interprets
-    the meter reading, ensuring that exactly four digits are read, or returns 'Undefined' if the conditions are not met.
-
-    Attributes:
-        model (YOLO): The YOLO model used for digit detection.
-        confidence_level (float): The confidence threshold for digit detection.
-
-    Methods:
-        read_meter(file_path): Reads the meter value from an image file.
-        read_meter_with_plot(file_path): Reads the meter value and plots the image with bounding boxes.
-    """
     def __init__(self, model_path, confidence_level=0.6):
         if not os.path.exists(model_path):
             raise FileNotFoundError(f"Model file not found at {model_path}")
@@ -31,20 +19,20 @@ class MeterReader:
 
     def _filter_and_sort_digits(self, boxes_data):
         digit_centers = [(box[0], box[1], box[2], box[3], box[5]) for box in boxes_data if box[4] > self.confidence_level]
-        digit_centers.sort(key=lambda x: x[0])  # Sort based on x_min value
+        digit_centers.sort(key=lambda x: x[0])  
 
         filtered_digits = []
         i = 0
-        #Check if two digits might be detected in the same horizontal space and  very close to each other horizontally
+        
         while i < len(digit_centers):
-            if i < len(digit_centers) - 1 and abs(digit_centers[i][0] - digit_centers[i+1][0]) < 10: # 10 is threshold from visualize distance between two digits 
-                # Check if the digits are vertically aligned (similar x position)
+            if i < len(digit_centers) - 1 and abs(digit_centers[i][0] - digit_centers[i+1][0]) < 10:  
+                
                 top_digit = digit_centers[i] if digit_centers[i][1] < digit_centers[i+1][1] else digit_centers[i+1]
                 bottom_digit = digit_centers[i+1] if digit_centers[i][1] < digit_centers[i+1][1] else digit_centers[i]
                 
-                # Assuming a forward-moving meter, choose the bottom digit
+                
                 filtered_digits.append(bottom_digit)
-                i += 2  # Skip the next digit as it's part of a transitioning pair
+                i += 2  
             else:
                 filtered_digits.append(digit_centers[i])
                 i += 1
