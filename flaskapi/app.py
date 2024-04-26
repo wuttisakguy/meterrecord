@@ -29,7 +29,7 @@ load_dotenv()
 parent_dir = str(Path(__file__).resolve().parent.parent)
 sys.path.append(parent_dir)
 
-meter_reader = MeterReader(model_path=os.path.join(parent_dir, "MeterReader", "model", "best3.pt"), confidence_level=0.5)
+# meter_reader = MeterReader(model_path=os.path.join(parent_dir, "MeterReader", "model", "best3.pt"), confidence_level=0.5)
 
 app = Flask(__name__)
 cors = CORS(app)
@@ -144,6 +144,78 @@ def get_data_elect():
     lastlabel = list(set(label))
     lastlabel.sort()
     return jsonify({ "category": lastlabel, "data": data })
+
+@app.route('/api/configelectric/update', methods=["PUT"])
+@cross_origin()
+def update_configelectric():
+    updated_data = request.json
+    ft = updated_data.get("ft")
+    unit151_400 = updated_data.get("unit151_400")
+    unit1_150 = updated_data.get("unit1_150")
+    unit401 = updated_data.get("unit401")
+
+    if ft is None or unit151_400 is None or unit1_150 is None or unit401 is None:
+        return jsonify({"error": "All fields (ft, unit151_400, unit1_150, unit401) are required."}), 400
+
+    collection = db_config_elec
+    update_result = collection.update_one(
+        {},
+        {"$set": {
+            "ft": ft,
+            "unit151_400": unit151_400,
+            "unit1_150": unit1_150,
+            "unit401": unit401
+        }}
+    )
+
+    if update_result.modified_count == 1:
+        return jsonify({"message": "Update successful"})
+    else:
+        return jsonify({"message": "Update failed"})
+
+@app.route('/api/configwater/update', methods=["PUT"])
+@cross_origin()
+def update_configwater():
+    updated_data = request.json
+    waterunit_0_10 = updated_data.get("waterunit_0_10")
+    waterunit_11_20 = updated_data.get("waterunit_11_20")
+    waterunit_21_30 = updated_data.get("waterunit_21_30")
+    waterunit_31_40 = updated_data.get("waterunit_31_40")
+    waterunit_41_50 = updated_data.get("waterunit_41_50")
+    waterunit_51_60 = updated_data.get("waterunit_51_60")
+    waterunit_61_80 = updated_data.get("waterunit_61_80")
+    waterunit_81_100 = updated_data.get("waterunit_81_100")
+    waterunit_101_120 = updated_data.get("waterunit_101_120")
+    waterunit_121_160 = updated_data.get("waterunit_121_160")
+    waterunit_161_200 = updated_data.get("waterunit_161_200")
+    waterunit_201 = updated_data.get("waterunit_201")
+
+    if waterunit_0_10 is None or waterunit_11_20 is None or waterunit_21_30 is None or waterunit_31_40 is None or waterunit_41_50 is None or waterunit_51_60 is None or waterunit_61_80 is None or waterunit_81_100 is None or waterunit_101_120 is None or waterunit_121_160 is None or waterunit_161_200 is None or waterunit_201 is None:
+        return jsonify({"error": "All fields are required."}), 400
+
+    collection = db_config_water
+    update_result = collection.update_one(
+        {},
+        {"$set": {
+            "waterunit_0_10": waterunit_0_10,
+            "waterunit_11_20": waterunit_11_20,
+            "waterunit_21_30": waterunit_21_30,
+            "waterunit_31_40": waterunit_31_40,
+            "waterunit_41_50": waterunit_41_50, 
+            "waterunit_51_60": waterunit_51_60, 
+            "waterunit_61_80": waterunit_61_80, 
+            "waterunit_81_100": waterunit_81_100, 
+            "waterunit_101_120": waterunit_101_120, 
+            "waterunit_121_160": waterunit_121_160,
+            "waterunit_161_200": waterunit_161_200,
+            "waterunit_201": waterunit_201, 
+        }}
+    )
+
+    if update_result.modified_count == 1:
+        return jsonify({"message": "Update successful"})
+    else:
+        return jsonify({"message": "Update failed"})
 
 @app.route('/api/configelectric' , methods=['GET'])
 @cross_origin()
