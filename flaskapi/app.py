@@ -10,6 +10,8 @@ from dotenv import load_dotenv
 import sys
 from pathlib import Path
 from bson import binary
+from flask_bcrypt import Bcrypt
+import jwt
 
 parent_dir = str(Path(__file__).resolve().parent.parent)
 sys.path.append(parent_dir)
@@ -32,11 +34,13 @@ sys.path.append(parent_dir)
 # meter_reader = MeterReader(model_path=os.path.join(parent_dir, "MeterReader", "model", "best3.pt"), confidence_level=0.5)
 
 app = Flask(__name__)
+bcrypt = Bcrypt(app)
 cors = CORS(app)
 app.config['CORS_HEADERS'] = 'Content-Type'
 
 mongo_uri = os.getenv("MONGO_URI")
 client = MongoClient(mongo_uri)
+db_users = client["meter_recording"]["users"]
 db_watermeter = client["meter_recording"]["meters_water"]
 db_electmeter = client["meter_recording"]["meters_electric"]
 db_waterbill = client["meter_recording"]["bills_water"]
@@ -45,7 +49,6 @@ db_config_water = client['meter_recording']['config_water_meter']
 db_config_elec = client['meter_recording']['config_electric_meter']
 db_unit_water = client['meter_recording']['unit_water']
 db_unit_elec = client['meter_recording']['unit_electric']
-    
 
 def calculate_water_bills(unit:float):
     #203unit
@@ -104,6 +107,77 @@ def calculate_elec_bills(unit:float) -> Dict[float, float]:
 
     value = value + ((config_elec['ft'] * unit)/100)
     return value, config_elec['ft']
+
+@app.route('/api/verify', methods=["GET"])
+@cross_origin()
+def user_verify():
+    token = request.headers.get('Authorization')
+    if not token:
+        return jsonify({"message": "token invalid"}), 401
+    
+    try:
+        payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=['HS256'])
+        expiration_time = datetime.fromtimestamp(payload['exp'])
+        current_time = datetime.utcnow()
+        
+        if current_time > expiration_time:
+            return jsonify({"message": "Token has expired", "status": 0}), 401
+        else:
+            return jsonify({"message": "Verify success", "data": payload, "status": 1}), 200
+    except jwt.ExpiredSignatureError:
+        return jsonify({"message": "Token has expired", "status": 0}), 401
+    except jwt.InvalidTokenError:
+        return jsonify({"message": "Invalid token", "status": 0}), 401
+
+@app.route('/api/register', methods=["POST"])
+@cross_origin()
+def user_register():
+    user_data = request.json
+    username = user_data.get("username")
+    password = user_data.get("password")
+    collection = db_users
+
+    if not username or not password:
+        return jsonify({"message": "usernane and password is required"})
+    
+    findUserExist = collection.find_one({
+        "username": username
+    })
+
+    if findUserExist:
+        return jsonify({"message": "username is exist"})
+    else:
+        hashedPassword = bcrypt.generate_password_hash(password).decode('utf-8')
+        collection.insert_one({
+            "username": username,
+            "password": hashedPassword
+        })
+        return jsonify({"message": "create user success"})
+
+@app.route('/api/login', methods=["POST"])
+@cross_origin()
+def user_login():
+    user_data = request.json
+    username = user_data.get("username")
+    password = user_data.get("password")
+    collection = db_users
+
+    if not username or not password:
+        return jsonify({"message": "username and password is required"})
+    
+    findUser = collection.find_one({
+        "username": username
+    })
+    
+    if findUser:
+        if bcrypt.check_password_hash(findUser.get("password"), password):
+            expiration_time = datetime.utcnow() + timedelta(days=30)
+            token = jwt.encode({'username': username, 'exp': expiration_time}, os.getenv("SECRET_KEY"), algorithm='HS256')
+            return jsonify({"message": "success", "token": token})
+        else:
+            return jsonify({"message": "pasword not correct"})
+    else:
+        return jsonify({"message": "Not found user"})
 
 @app.route('/api/data_water', methods=['GET'])
 @cross_origin()
