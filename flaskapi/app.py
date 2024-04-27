@@ -113,7 +113,7 @@ def calculate_elec_bills(unit:float) -> Dict[float, float]:
 def user_verify():
     token = request.headers.get('Authorization')
     if not token:
-        return jsonify({"message": "token invalid"}), 401
+        return jsonify({"message": "token invalid","status": 0}), 401
     
     try:
         payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=['HS256'])
@@ -163,7 +163,7 @@ def user_login():
     collection = db_users
 
     if not username or not password:
-        return jsonify({"message": "username and password is required"})
+        return jsonify({"message": "username and password is required"}), 401
     
     findUser = collection.find_one({
         "username": username
@@ -175,9 +175,9 @@ def user_login():
             token = jwt.encode({'username': username, 'exp': expiration_time}, os.getenv("SECRET_KEY"), algorithm='HS256')
             return jsonify({"message": "success", "token": token})
         else:
-            return jsonify({"message": "pasword not correct"})
+            return jsonify({"message": "pasword not correct"}), 409
     else:
-        return jsonify({"message": "Not found user"})
+        return jsonify({"message": "Not found user"}), 404
 
 @app.route('/api/data_water', methods=['GET'])
 @cross_origin()
