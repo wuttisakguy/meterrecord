@@ -29,7 +29,7 @@ load_dotenv()
 parent_dir = str(Path(__file__).resolve().parent.parent)
 sys.path.append(parent_dir)
 
-# meter_reader = MeterReader(model_path=os.path.join(parent_dir, "MeterReader", "model", "best3.pt"), confidence_level=0.5)
+meter_reader = MeterReader(model_path=os.path.join(parent_dir, "MeterReader", "model", "best3.pt"), confidence_level=0.5)
 
 app = Flask(__name__)
 cors = CORS(app)
@@ -722,10 +722,10 @@ def get_data_chart_elect():
 @app.route('/meter_reading', methods=['POST'])
 def add_meter_reading():
     data = request.json
-    position = data['position']
+    position = data['name']
     typemeter = data['type']
     img_base64 = data['imageSrc']
-    name = data['name']
+    # name = data['name']
 
     if img_base64.startswith("data:image"):
         img_base64 = img_base64.split(",")[1]
@@ -756,7 +756,7 @@ def add_meter_reading():
             "value": int(value),
             "datetime": current_utc_datetime,
             "image": bson_binary,
-            "name2" : name,
+            # "name2" : name,
         }
         print(meter_docs)
         if typemeter == "watermeter":
