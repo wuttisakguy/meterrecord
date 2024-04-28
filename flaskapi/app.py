@@ -339,7 +339,6 @@ def get_configwater():
 @cross_origin()
 def get_datatable_elect():
     collection = db_electbill
-    current_year = datetime.now().year
     pipeline = [
     {
         "$project": {
@@ -353,23 +352,21 @@ def get_datatable_elect():
             "month": {"$month": "$datetime"} 
         }
     },
-    # {
-    #         "$match": {
-    #             "year": current_year
-    #         }
-    #     },
     {
         "$sort": {"year": 1, "month": 1}
     }
 ]
     data = list(collection.aggregate(pipeline))
-    return jsonify(data)
+    label = [obj['name'] for obj in data]
+    lastlabel = list(set(label))
+    lastlabel.sort()
+    return jsonify({ "category": lastlabel, "data": data })
+    # return jsonify(data)
 
 @app.route('/api/datatable_water', methods=['GET'])
 @cross_origin()
 def get_datatable_water():
     collection = db_waterbill
-    current_year = datetime.now().year
     pipeline = [
     {
         "$project": {
@@ -382,17 +379,16 @@ def get_datatable_water():
             "month": {"$month": "$datetime"} 
         }
     },
-    # {
-    #         "$match": {
-    #             "year": current_year
-    #         }
-    #     },
     {
         "$sort": {"year": 1, "month": 1}
     }
 ]
     data = list(collection.aggregate(pipeline))
-    return jsonify(data)
+    label = [obj['name'] for obj in data]
+    lastlabel = list(set(label))
+    lastlabel.sort()
+    return jsonify({ "category": lastlabel, "data": data })
+    # return jsonify(data)
 
 @app.route('/api/data_waterbillmonth', methods=['GET'])
 @cross_origin()
